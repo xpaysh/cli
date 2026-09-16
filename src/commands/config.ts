@@ -1,9 +1,10 @@
 import { Command } from 'commander';
+import chalk from 'chalk';
+import { readConfig, writeConfigValue, clearCache, getConfigPath } from '../lib/storage.js';
+import { maskKey } from '../lib/auth.js';
+import { printSuccess, printInfo } from '../lib/ui.js';
 
-import { readConfig, writeConfig } from '../lib/storage.js';
-
-export const configCommand = new Command('config')
-  .description('Manage xpay CLI configuration');
+export const configCommand = new Command('config').description('Manage CLI configuration');
 
 configCommand
   .command('set')
@@ -11,8 +12,9 @@ configCommand
   .argument('<key>', 'Config key (e.g. api-key)')
   .argument('<value>', 'Config value')
   .action((key: string, value: string) => {
-    writeConfig(key, value);
-    console.log(`Set ${key} = ${key === 'api-key' ? '****' : value}`);
+    writeConfigValue(key, value);
+    const display = key === 'api-key' ? maskKey(value) : value;
+    printSuccess(`${key} = ${display}`);
   });
 
 configCommand
@@ -22,8 +24,40 @@ configCommand
   .action((key: string) => {
     const config = readConfig();
     if (key in config) {
-      console.log(key === 'api-key' ? '****' : config[key]);
+      const display = key === 'api-key' ? maskKey(config[key]) : config[key];
+      console.log(display);
     } else {
-      console.log(`Key "${key}" not set.`);
+      printInfo(`Key "${key}" not set.`);
+    }
+  });
+
+configCommand
+  .command('path')
+  .description('Show config file path')
+  .action(() => {
+    console.log(getConfigPath());
+  });
+
+configCommand
+  .command('clear-cache')
+  .description('Clear API response cache')
+  .action(() => {
+    clearCache();
+    printSuccess('Cache cleared.');
+  });
+
+configCommand
+  .command('show')
+  .description('Show all config values')
+  .action(() => {
+    const config = readConfig();
+    const keys = Object.keys(config);
+    if (keys.length === 0) {
+      printInfo('No config values set.');
+      return;
+    }
+    for (const key of keys) {
+      const display = key === 'api-key' ? maskKey(config[key]) : config[key];
+      console.log(`  ${chalk.bold(key)}: ${display}`);
     }
   });

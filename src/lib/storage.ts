@@ -1,8 +1,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-
+import { CONFIG_DIR, CONFIG_FILE } from './constants.js';
 import type { AgentInfo } from './detect-agent.js';
+
+// --- Skills ---
 
 export function writeSkill(agent: AgentInfo, skillName: string, content: string): string {
   const skillDir = path.join(agent.skillsDir, skillName);
@@ -26,8 +28,20 @@ export function listInstalledSkills(agent: AgentInfo): string[] {
     .map((d) => d.name);
 }
 
+export function getSkillInstallDate(agent: AgentInfo, skillName: string): Date | null {
+  const filePath = path.join(agent.skillsDir, skillName, 'SKILL.md');
+  if (!fs.existsSync(filePath)) return null;
+  return fs.statSync(filePath).mtime;
+}
+
+// --- Config ---
+
+export function getConfigDir(): string {
+  return path.join(os.homedir(), CONFIG_DIR);
+}
+
 export function getConfigPath(): string {
-  return path.join(os.homedir(), '.xpay', 'config.json');
+  return path.join(getConfigDir(), CONFIG_FILE);
 }
 
 export function readConfig(): Record<string, string> {
@@ -35,13 +49,24 @@ export function readConfig(): Record<string, string> {
   if (!fs.existsSync(configPath)) {
     return {};
   }
-  return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  try {
+    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+  } catch {
+    return {};
+  }
 }
 
-export function writeConfig(key: string, value: string): void {
+export function writeConfigValue(key: string, value: string): void {
   const configPath = getConfigPath();
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   const config = readConfig();
   config[key] = value;
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+export function clearCache(): void {
+  const cacheDir = path.join(getConfigDir(), 'cache');
+  if (fs.existsSync(cacheDir)) {
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+  }
 }
